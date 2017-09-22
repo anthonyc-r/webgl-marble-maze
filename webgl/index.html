@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>WebGL stuff</title>
+	<!--<script src="glMatrix-0.9.5.min.js"></script>-->
+	<script src="gl-matrix.js"></script>
+	<script src="glex.js"></script>
+	<script src="shapes.js"></script>
+	<script src="input.js"></script>
+	<script src="marble.js"></script>
+	<script src="board.js"></script>
+	<script src="main.js"></script>
+</head>
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+	
+	uniform bool LightingEnabled;
+	
+	uniform vec3 MaterialColor;
+	uniform vec3 AmbientColor;
+	uniform vec3 LightColor;
+	uniform vec3 LightPosition;
+	uniform vec3 LightDirection;
+	
+	varying vec3 Normal;
+	varying vec4 Position;
+	varying vec3 FixedPosition;
+
+    void main(void) {
+
+		vec4 rgba;
+		if (LightingEnabled) {
+			vec3 position = Position.xyz;
+			//wood
+			float yrot = 2.75;
+			float zrot = 1.55;
+			mat3 woodRotationY = mat3(cos(yrot), 0.0, sin(yrot),
+									 0.0, 1.0, 0.0,
+									 -sin(yrot), 0.0, cos(yrot));
+			mat3 woodRotationZ = mat3(cos(zrot), -sin(zrot), 0.0,
+									  sin(zrot), cos(zrot), 0.0,
+									  0.0, 0.0, 1.0);
+			vec3 rotatedPos = woodRotationY*woodRotationZ*FixedPosition;
+			//vec3 rotatedPos = Position;
+			vec3 woodColor;
+			float ringsFreq = 20.0;
+			float ringWidth = 0.4; 
+			float ring = abs(cos(ringsFreq*length(vec3(0, rotatedPos.y, rotatedPos.z))));
+			if (ring > ringWidth) {
+				woodColor = vec3(0.714, 0.608, 0.298);
+			}
+			else {
+				woodColor = vec3(0.51, 0.322, 0.004);
+			}
+			//Normalise
+			vec3 lightDirection = normalize(LightPosition - position);
+			vec3 scatteredLight = AmbientColor + 50.0 * LightColor * max(dot(Normal, lightDirection), 0.0);
+			
+			vec3 rgb = min((woodColor * scatteredLight), vec3(1.0));
+			rgba = vec4(rgb, 1.0);
+		}
+		else {
+			rgba = vec4(MaterialColor, 1.0);
+		}
+
+		gl_FragColor = rgba;
+    }
+</script>
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 VertexPosition;
+	attribute vec3 VertexNormal;
+
+	uniform mat4 MVMatrix;
+    uniform mat4 MVPMatrix;
+    uniform mat3 NormalMatrix;	//Just the pre perspective MV matrix in this case
+	uniform int time;
+	
+	varying vec3 Normal;
+    varying vec4 Position;
+	varying vec3 FixedPosition;
+	varying float fragTime;
+	
+    void main(void) {
+		Normal = NormalMatrix * VertexNormal;
+		Position = MVMatrix * vec4(VertexPosition, 1.0);
+		FixedPosition = VertexPosition;
+
+        gl_Position = MVPMatrix * vec4(VertexPosition, 1.0);
+    }
+</script>
+<body onload="start();">
+	<canvas id="canvas" width="600" height="400"></canvas>
+</body>
+</html>
